@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 Original Author: Shay Gal-on
+Modifications Author: 2023 Mikhail Shomov
 */
 
 /* File: core_main.c
@@ -21,6 +22,9 @@ Original Author: Shay Gal-on
    initial parameters, tun t he benchmark and report the results.
 */
 #include "coremark.h"
+#if HAS_PRINTF
+    #include "printf.h"
+#endif
 
 /* Function: iterate
         Run the benchmark for a specified number of iterations.

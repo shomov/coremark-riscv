@@ -1,6 +1,5 @@
-9007fe7861b60ee6f210d156b62974c8  core_list_join.c
-4a9e6dadce1ac3866381021fbe843fc9  core_main.c
-5fa21a0f7c3964167c9691db531ca652  core_matrix.c
-fb49e7605c125306575a83f14f5798ac  core_state.c
-45540ba2145adea1ec7ea2c72a1fbbcb  core_util.c
-8ca974c013b380dc7f0d6d1afb76eb2d  coremark.h
+afc03b122515ec773b78f287de086574 *core_list_join.c
+2243b761664b09eb28c5890d51d66f36 *core_main.c
+a7a2253d5de07e4cb9b7630f8719b30c *core_matrix.c
+8937558c5f1e4ba8a4eef9992ee143e9 *core_state.c
+3d70cbeb67b563455240a451585a163c *core_util.c

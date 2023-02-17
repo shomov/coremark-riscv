@@ -14,9 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 Original Author: Shay Gal-on
+Modifications Author: 2023 Mikhail Shomov
 */
 
 #include "coremark.h"
+#if HAS_PRINTF
+    #include "printf.h"
+#endif
 /* local functions */
 enum CORE_STATE core_state_transition(ee_u8 **instr, ee_u32 *transition_count);
 
