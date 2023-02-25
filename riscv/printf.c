@@ -1,27 +1,28 @@
 /*
-  Copyright 2001-2021 Georges Menie
-  https://www.menie.org/georges/embedded/small_printf_source_code.html
-  Modifications Copyright: 2023 Mikhail Shomov
+	Copyright 2001, 2002 Georges Menie (www.menie.org)
+    Modifications Author: 2023 Mikhail Shomov
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU Lesser General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU Lesser General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
 
-  You should have received a copy of the GNU Lesser General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 /*
 	FRONTGRADE GRLIB APBUART
 */
 #include "printf.h"
+#include <stdarg.h>
+
 
 static volatile struct uart_regs *uart;
 
@@ -32,14 +33,15 @@ void uart_init(unsigned int addr) {
   uart->control = ENABLE_TX;
 }
 
-static int putchar(int c) {
+static int putchar(uint32_t c) {
 	uart->data = c;
 	return 0;
 }
 
-static void printchar(char **str, int c)
+static void  __attribute__((optimize("Os"))) printchar(char **str, int c)
 {
 	extern int putchar(int c);
+
 	if (str) {
 		**str = c;
 		++(*str);
@@ -50,7 +52,7 @@ static void printchar(char **str, int c)
 #define PAD_RIGHT 1
 #define PAD_ZERO 2
 
-static int prints(char **out, const char *string, int width, int pad)
+static int  __attribute__((optimize("Os"))) prints(char **out, const char *string, int width, int pad)
 {
 	register int pc = 0, padchar = ' ';
 
@@ -83,7 +85,7 @@ static int prints(char **out, const char *string, int width, int pad)
 /* the following should be enough for 32 bit int */
 #define PRINT_BUF_LEN 12
 
-static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
+static int  __attribute__((optimize("Os"))) printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
 {
 	char print_buf[PRINT_BUF_LEN];
 	register char *s;
@@ -126,11 +128,10 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
 	return pc + prints (out, s, width, pad);
 }
 
-static int print(char **out, int *varg)
+static int  __attribute__((optimize("Os"))) print( char **out, const char *format, va_list args )
 {
 	register int width, pad;
 	register int pc = 0;
-	register char *format = (char *)(*varg++);
 	char scr[2];
 
 	for (; *format != 0; ++format) {
@@ -152,29 +153,29 @@ static int print(char **out, int *varg)
 				width += *format - '0';
 			}
 			if( *format == 's' ) {
-				register char *s = *((char **)varg++);
+				register char *s = (char *)((long)va_arg( args, int ));
 				pc += prints (out, s?s:"(null)", width, pad);
 				continue;
 			}
 			if( *format == 'd' ) {
-				pc += printi (out, *varg++, 10, 1, width, pad, 'a');
+				pc += printi (out, va_arg( args, int ), 10, 1, width, pad, 'a');
 				continue;
 			}
 			if( *format == 'x' ) {
-				pc += printi (out, *varg++, 16, 0, width, pad, 'a');
+				pc += printi (out, va_arg( args, int ), 16, 0, width, pad, 'a');
 				continue;
 			}
 			if( *format == 'X' ) {
-				pc += printi (out, *varg++, 16, 0, width, pad, 'A');
+				pc += printi (out, va_arg( args, int ), 16, 0, width, pad, 'A');
 				continue;
 			}
 			if( *format == 'u' ) {
-				pc += printi (out, *varg++, 10, 0, width, pad, 'a');
+				pc += printi (out, va_arg( args, int ), 10, 0, width, pad, 'a');
 				continue;
 			}
 			if( *format == 'c' ) {
 				/* char are converted to int then pushed on the stack */
-				scr[0] = *varg++;
+				scr[0] = (char)va_arg( args, int );
 				scr[1] = '\0';
 				pc += prints (out, scr, width, pad);
 				continue;
@@ -187,25 +188,45 @@ static int print(char **out, int *varg)
 		}
 	}
 	if (out) **out = '\0';
+	va_end( args );
 	return pc;
 }
 
-/* assuming sizeof(void *) == sizeof(int) */
-
-int printf(const char *format, ...)
+int  __attribute__((optimize("Os"))) printf(const char *format, ...)
 {
-	register int *varg = (int *)(&format);
-	return print(0, varg);
+        va_list args;
+
+        va_start( args, format );
+        return print( 0, format, args );
 }
 
-int sprintf(char *out, const char *format, ...)
+int  __attribute__((optimize("Os"))) sprintf(char *out, const char *format, ...)
 {
-	register int *varg = (int *)(&format);
-	return print(&out, varg);
+        va_list args;
+
+        va_start( args, format );
+        return print( &out, format, args );
 }
+
+int  __attribute__((optimize("Os"))) snprintf( char *buf, unsigned int count, const char *format, ... )
+{
+        va_list args;
+
+        ( void ) count;
+
+        va_start( args, format );
+        return print( &buf, format, args );
+}
+
+/* To keep linker happy. */
+int	 __attribute__((optimize("Os"))) write( int i, char* c, int n)
+{
+	return 0;
+}
+
 
 #ifdef TEST_PRINTF
-int main(void)
+int print_test(void)
 {
 	char *ptr = "Hello world!";
 	char *np = 0;

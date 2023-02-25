@@ -25,6 +25,15 @@ Modifications Author: 2023 Mikhail Shomov
 #define CORE_PORTME_H
 
 #include <stddef.h>
+#ifndef ITERATIONS
+        #define ITERATIONS 0
+#endif
+#ifndef XLEN
+        #define XLEN 32
+#endif
+#ifndef CLOCKS_PER_SEC
+        #define CLOCKS_PER_SEC 100000000
+#endif
 /************************/
 /* Data types and settings */
 /************************/
@@ -73,7 +82,7 @@ Modifications Author: 2023 Mikhail Shomov
 #endif
 #endif
 #ifndef COMPILER_FLAGS
-#define COMPILER_FLAGS __NO_INLINE__
+#define COMPILER_FLAGS "" //TODO
 #endif
 #ifndef MEM_LOCATION
 #define MEM_LOCATION "STACK"
@@ -87,14 +96,16 @@ Modifications Author: 2023 Mikhail Shomov
         ee_ptr_int needs to be the data type used to hold pointers, otherwise
    coremark may fail!!!
 */
-typedef signed short   ee_s16;
-typedef unsigned short ee_u16;
-typedef signed int     ee_s32;
-typedef double         ee_f32;
-typedef unsigned char  ee_u8;
-typedef unsigned int   ee_u32;
-typedef ee_u32         ee_ptr_int;
-typedef size_t         ee_size_t;
+typedef signed short            ee_s16;
+typedef unsigned short          ee_u16;
+typedef signed int              ee_s32;
+typedef signed long long        ee_s64;
+typedef double                  ee_f32;
+typedef unsigned char           ee_u8;
+typedef unsigned int            ee_u32;
+typedef unsigned long long      ee_u64;
+typedef ee_u32                  ee_ptr_int;
+typedef size_t                  ee_size_t;
 #define NULL ((void *)0)
 /* align_mem :
         This macro is used to align an offset to point to a 32b value. It is
@@ -105,8 +116,14 @@ typedef size_t         ee_size_t;
 /* Configuration : CORE_TICKS
         Define type of return from the timing functions.
  */
-#define CORETIMETYPE ee_u32
-typedef ee_u32 CORE_TICKS;
+#if XLEN == 32
+        #define CORETIMETYPE ee_u32
+        typedef ee_u32 CORE_TICKS;
+#else
+        #define CORETIMETYPE ee_u64
+        typedef ee_u64 CORE_TICKS;
+#endif
+
 
 /* Configuration : SEED_METHOD
         Defines method to get seed values that cannot be computed at compile

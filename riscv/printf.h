@@ -28,5 +28,6 @@
 
    int printf(const char *format, ...);
    int sprintf(char *out, const char *format, ...);
+   int print_test(void);
 
 #endif /* PRINTF_H */

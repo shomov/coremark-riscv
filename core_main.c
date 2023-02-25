@@ -122,7 +122,6 @@ main(int argc, char *argv[])
     ee_u16       i, j = 0, num_algorithms = 0;
     ee_s16       known_id = -1, total_errors = 0;
     ee_u16       seedcrc = 0;
-    CORE_TICKS   total_time;
     core_results results[MULTITHREAD];
 #if (MEM_METHOD == MEM_STACK)
     ee_u8 stack_memblock[TOTAL_DATA_SIZE * MULTITHREAD];
@@ -254,7 +253,7 @@ for (i = 0; i < MULTITHREAD; i++)
             start_time();
             iterate(&results[0]);
             stop_time();
-            secs_passed = time_in_secs(get_time());
+            secs_passed = time_in_secs();
         }
         /* now we know it executes for at least 1 sec, set actual run time at
          * about 10 secs */
@@ -286,7 +285,6 @@ for (i = 0; i < MULTITHREAD; i++)
     iterate(&results[0]);
 #endif
     stop_time();
-    total_time = get_time();
     /* get a function of the input to report */
     seedcrc = crc16(results[0].seed1, seedcrc);
     seedcrc = crc16(results[0].seed2, seedcrc);
@@ -359,29 +357,28 @@ for (i = 0; i < MULTITHREAD; i++)
     }
     total_errors += check_data_types();
     /* and report results */
-    ee_printf("CoreMark Size    : %lu\n", (long unsigned)results[0].size);
-    ee_printf("Total ticks      : %lu\n", (long unsigned)total_time);
+    ee_printf("CoreMark Size    : %u\n", (long unsigned)results[0].size);
 #if HAS_FLOAT
-    ee_printf("Total time (secs): %f\n", time_in_secs(total_time));
-    if (time_in_secs(total_time) > 0)
+    ee_printf("Total time (secs): %f\n", time_in_secs());
+    if (time_in_secs() > 0)
         ee_printf("Iterations/Sec   : %f\n",
                   default_num_contexts * results[0].iterations
-                      / time_in_secs(total_time));
+                      / time_in_secs());
 #else
-    ee_printf("Total time (secs): %d\n", time_in_secs(total_time));
-    if (time_in_secs(total_time) > 0)
+    ee_printf("Total time (secs): %u\n", time_in_secs());
+    if (time_in_secs() > 0)
         ee_printf("Iterations/Sec   : %d\n",
                   default_num_contexts * results[0].iterations
-                      / time_in_secs(total_time));
+                      / time_in_secs());
 #endif
-    if (time_in_secs(total_time) < 10)
+    if (time_in_secs() < 10)
     {
         ee_printf(
             "ERROR! Must execute for at least 10 secs for a valid result!\n");
         total_errors++;
     }
 
-    ee_printf("Iterations       : %lu\n",
+    ee_printf("Iterations       : %u\n",
               (long unsigned)default_num_contexts * results[0].iterations);
     ee_printf("Compiler version : %s\n", COMPILER_VERSION);
     ee_printf("Compiler flags   : %s\n", COMPILER_FLAGS);
@@ -412,7 +409,7 @@ for (i = 0; i < MULTITHREAD; i++)
         {
             ee_printf("CoreMark 1.0 : %f / %s %s",
                       default_num_contexts * results[0].iterations
-                          / time_in_secs(total_time),
+                          / time_in_secs(),
                       COMPILER_VERSION,
                       COMPILER_FLAGS);
 #if defined(MEM_LOCATION) && !defined(MEM_LOCATION_UNSPEC)

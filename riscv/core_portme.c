@@ -45,11 +45,13 @@ volatile ee_s32 seed5_volatile = 0;
    cpu clock cycles performance counter etc. Sample implementation for standard
    time.h and windows.h definitions included.
 */
-CORETIMETYPE
-barebones_clock() {
-    CORETIMETYPE clock_cnt;
-    __asm__ volatile ("rdcycle %0;" : "=r"(clock_cnt));     // RISC-V ISA Counters 
-}
+
+#if XLEN == 32
+    CORETIMETYPE clock_start, clock_startH, clock_stop, clock_stopH;
+#else
+    CORETIMETYPE clock_start, clock_stop;
+#endif
+
 /* Define : TIMER_RES_DIVIDER
         Divider to trade off timer resolution and total time that can be
    measured.
@@ -58,7 +60,6 @@ barebones_clock() {
    does not occur. If there are issues with the return value overflowing,
    increase this value.
         */
-#define GETMYTIME(_t)              (*_t = barebones_clock())
 #define MYTIMEDIFF(fin, ini)       ((fin) - (ini))
 #define TIMER_RES_DIVIDER          1
 #define SAMPLE_TIME_IMPLEMENTATION 1
@@ -75,10 +76,12 @@ static CORETIMETYPE start_time_val, stop_time_val;
    example code) or zeroing some system parameters - e.g. setting the cpu clocks
    cycles to 0.
 */
-void
-start_time(void)
-{
-    GETMYTIME(&start_time_val);
+void start_time(void) {
+    #if XLEN == 32
+        __asm__ volatile ("rdcycleh %0;" : "=r"(clock_startH));     // RISC-V ISA Counters 
+    #endif
+    __asm__ volatile ("rdcycle %0;" : "=r"(clock_start));           // RISC-V ISA Counters 
+    //TODO check overflow
 }
 /* Function : stop_time
         This function will be called right after ending the timed portion of the
@@ -88,10 +91,12 @@ start_time(void)
    example code) or other system parameters - e.g. reading the current value of
    cpu cycles counter.
 */
-void
-stop_time(void)
-{
-    GETMYTIME(&stop_time_val);
+void stop_time(void) {
+    #if XLEN == 32
+        __asm__ volatile ("rdcycleh %0;" : "=r"(clock_stopH));     // RISC-V ISA Counters 
+    #endif
+    __asm__ volatile ("rdcycle %0;" : "=r"(clock_stop));           // RISC-V ISA Counters 
+    //TODO check overflow
 }
 /* Function : get_time
         Return an abstract "ticks" number that signifies time on the system.
@@ -102,25 +107,46 @@ stop_time(void)
    sample implementation returns millisecs by default, and the resolution is
    controlled by <TIMER_RES_DIVIDER>
 */
-CORE_TICKS
-get_time(void)
-{
-    CORE_TICKS elapsed
-        = (CORE_TICKS)(MYTIMEDIFF(stop_time_val, start_time_val));
-    return elapsed;
-}
+// CORE_TICKS get_time(void) {
+//     CORE_TICKS elapsed = (CORE_TICKS)(MYTIMEDIFF(stop_time_val, start_time_val));
+//     return elapsed;
+// }
+
 /* Function : time_in_secs
-        Convert the value returned by get_time to seconds.
+        Convert the ticks to seconds.
 
         The <secs_ret> type is used to accommodate systems with no support for
    floating point. Default implementation implemented by the EE_TICKS_PER_SEC
    macro above.
 */
-secs_ret
-time_in_secs(CORE_TICKS ticks)
-{
-    secs_ret retval = ((secs_ret)ticks) / (secs_ret)EE_TICKS_PER_SEC;
-    return retval;
+secs_ret time_in_secs() {
+    secs_ret retval = 0;
+    ee_u32 clock = 0;
+    ee_u32 clockH = 0;
+    #if XLEN == 32
+        if (clock_stop > clock_start) {
+            clock = clock_stop - clock_start;
+            clockH = clock_stopH - clock_startH;
+        }
+        else {
+            clock = clock_start - clock_stop;
+            clockH = clock_stopH - clock_startH - 1;
+        }
+        retval = clock / EE_TICKS_PER_SEC;
+        ee_u32 remains = clock % EE_TICKS_PER_SEC;
+        while (clockH > 0) {
+            clockH--;
+            retval += 0xFFFFFFFF / EE_TICKS_PER_SEC;
+            remains += 0xFFFFFFFF % EE_TICKS_PER_SEC;
+            if (remains >= EE_TICKS_PER_SEC) {
+                retval += remains / EE_TICKS_PER_SEC;
+                remains = remains % EE_TICKS_PER_SEC;
+            }
+        }
+        return retval;
+    #else
+        return (secs_ret)((clock_stop - clock_start) / EE_TICKS_PER_SEC);
+    #endif
 }
 
 ee_u32 default_num_contexts = 1;
@@ -130,31 +156,16 @@ ee_u32 default_num_contexts = 1;
         Test for some common mistakes.
 */
 void
-portable_init(core_portable *p, int *argc, char *argv[])
-{
-#error \
-    "Call board initialization routines in portable init (if needed), in particular initialize UART!\n"
-
-    (void)argc; // prevent unused warning
-    (void)argv; // prevent unused warning
-
-    if (sizeof(ee_ptr_int) != sizeof(ee_u8 *))
-    {
-        ee_printf(
-            "ERROR! Please define ee_ptr_int to a type that holds a "
-            "pointer!\n");
-    }
-    if (sizeof(ee_u32) != 4)
-    {
-        ee_printf("ERROR! Please define ee_u32 to a 32b unsigned type!\n");
-    }
-    p->portable_id = 1;
+portable_init(core_portable *p, int *argc, char *argv[]) {
+  uart_init(0xfc001000);
+  printf("Hello, NOEL-V!\n");
 }
 /* Function : portable_fini
         Target specific final code
 */
 void
-portable_fini(core_portable *p)
-{
-    p->portable_id = 0;
+portable_fini(core_portable *p) {
+  printf("Bye, NOEL-V!\n");
+    while (1)
+        __asm__ __volatile__("ADDI x0, x0, 0");		//NOP
 }
