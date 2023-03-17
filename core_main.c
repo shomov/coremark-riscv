@@ -22,6 +22,8 @@ Modifications Author: 2023 Mikhail Shomov
    initial parameters, tun t he benchmark and report the results.
 */
 #include "coremark.h"
+#include "msg.h"
+#include "gpio.h"
 #if HAS_PRINTF
     #include "printf.h"
 #endif
@@ -241,29 +243,7 @@ for (i = 0; i < MULTITHREAD; i++)
         }
     }
 
-    /* automatically determine number of iterations if not set */
-    if (results[0].iterations == 0)
-    {
-        secs_ret secs_passed = 0;
-        ee_u32   divisor;
-        results[0].iterations = 1;
-        while (secs_passed < (secs_ret)1)
-        {
-            results[0].iterations *= 10;
-            start_time();
-            iterate(&results[0]);
-            stop_time();
-            secs_passed = time_in_secs();
-        }
-        /* now we know it executes for at least 1 sec, set actual run time at
-         * about 10 secs */
-        divisor = (ee_u32)secs_passed;
-        if (divisor == 0) /* some machines cast float to int as 0 since this
-                             conversion is not defined by ANSI, but we know at
-                             least one second passed */
-            divisor = 1;
-        results[0].iterations *= 1 + 10 / divisor;
-    }
+    results[0].iterations = 1;
     /* perform actual benchmark */
     start_time();
 #if (MULTITHREAD > 1)
@@ -332,6 +312,7 @@ for (i = 0; i < MULTITHREAD; i++)
                           i,
                           results[i].crclist,
                           list_known_crc[known_id]);
+                set_gpio (CM_FAILED_LIST);
                 results[i].err++;
             }
             if ((results[i].execs & ID_MATRIX)
@@ -341,6 +322,7 @@ for (i = 0; i < MULTITHREAD; i++)
                           i,
                           results[i].crcmatrix,
                           matrix_known_crc[known_id]);
+                set_gpio (CM_FAILED_MATRIX);
                 results[i].err++;
             }
             if ((results[i].execs & ID_STATE)
@@ -350,6 +332,7 @@ for (i = 0; i < MULTITHREAD; i++)
                           i,
                           results[i].crcstate,
                           state_known_crc[known_id]);
+                set_gpio (CM_FAILED_STATE);
                 results[i].err++;
             }
             total_errors += results[i].err;
@@ -357,35 +340,17 @@ for (i = 0; i < MULTITHREAD; i++)
     }
     total_errors += check_data_types();
     /* and report results */
-    ee_printf("CoreMark Size    : %u\n", (long unsigned)results[0].size);
-#if HAS_FLOAT
-    ee_printf("Total time (secs): %f\n", time_in_secs());
-    if (time_in_secs() > 0)
-        ee_printf("Iterations/Sec   : %f\n",
-                  default_num_contexts * results[0].iterations
-                      / time_in_secs());
-#else
-    ee_printf("Total time (secs): %u\n", time_in_secs());
-    if (time_in_secs() > 0)
-        ee_printf("Iterations/Sec   : %d\n",
-                  default_num_contexts * results[0].iterations
-                      / time_in_secs());
-#endif
-    if (time_in_secs() < 10)
-    {
-        ee_printf(
-            "ERROR! Must execute for at least 10 secs for a valid result!\n");
-        total_errors++;
-    }
+    // ee_printf("CoreMark Size    : %u\n", (long unsigned)results[0].size);
 
-    ee_printf("Iterations       : %u\n",
-              (long unsigned)default_num_contexts * results[0].iterations);
-    ee_printf("Compiler version : %s\n", COMPILER_VERSION);
-    ee_printf("Compiler flags   : %s\n", COMPILER_FLAGS);
+
+    // ee_printf("Iterations       : %u\n",
+    //           (long unsigned)default_num_contexts * results[0].iterations);
+    // ee_printf("Compiler version : %s\n", COMPILER_VERSION);
+    // ee_printf("Compiler flags   : %s\n", COMPILER_FLAGS);
 #if (MULTITHREAD > 1)
     ee_printf("Parallel %s : %d\n", PARALLEL_METHOD, default_num_contexts);
 #endif
-    ee_printf("Memory location  : %s\n", MEM_LOCATION);
+    // ee_printf("Memory location  : %s\n", MEM_LOCATION);
     /* output for verification */
     ee_printf("seedcrc          : 0x%04x\n", seedcrc);
     if (results[0].execs & ID_LIST)
@@ -404,6 +369,7 @@ for (i = 0; i < MULTITHREAD; i++)
         ee_printf(
             "Correct operation validated. See README.md for run and reporting "
             "rules.\n");
+            set_gpio (CM_SUCCESS);
 #if HAS_FLOAT
         if (known_id == 3)
         {

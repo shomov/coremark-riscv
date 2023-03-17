@@ -18,6 +18,8 @@ Modifications Author: 2023 Mikhail Shomov
 */
 #include "coremark.h"
 #include "core_portme.h"
+#include "gpio.h"
+#include "msg.h"
 #if HAS_PRINTF
     #include "printf.h"
 #endif
@@ -157,6 +159,7 @@ ee_u32 default_num_contexts = 1;
 */
 void
 portable_init(core_portable *p, int *argc, char *argv[]) {
+  set_gpio(NOEL_READY);
   uart_init(0xfc001000);
   printf("Hello, NOEL-V!\n");
 }
